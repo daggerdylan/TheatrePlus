@@ -254,7 +254,6 @@
         let currentFolderId = 'root';
         let currentFolderName = 'Home';
         
-        // This is the variable that determines where "Home" is
         let appRootId = 'root';
         let appRootName = 'Home';
 
@@ -270,7 +269,6 @@
                 scope: SCOPES,
                 callback: (resp) => {
                     if (resp.error) return;
-                    // Save session (1 hour)
                     const expiry = Date.now() + (resp.expires_in * 1000);
                     localStorage.setItem('drive_token', resp.access_token);
                     localStorage.setItem('drive_token_expiry', expiry);
@@ -301,40 +299,38 @@
             location.reload();
         }
 
-        // 3. STARTUP LOGIC
+        // 3. STARTUP LOGIC (DEEP SCAN)
         async function enterApp() {
             document.getElementById('auth-container').style.display = 'none';
             document.getElementById('app-header').style.display = 'flex';
             document.getElementById('main-container').style.display = 'block';
 
-            // SHOW LOADING
-            const grid = document.getElementById('video-grid');
             const loader = document.getElementById('loader');
             loader.style.display = 'block';
 
-            // TARGET SPECIFIC FOLDER: 'theatre'
-            // We search for a folder named "theatre" (or "Theatre") inside the root
+            // SCAN: Look everywhere for theatre/movies folder
+            // We removed "'root' in parents" so it searches nested folders too
             try {
                 const searchResp = await gapi.client.drive.files.list({
-                    'q': "(name = 'theatre' or name = 'Theatre') and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false",
-                    'fields': "files(id, name)"
+                    'q': "(name = 'theatre' or name = 'Theatre' or name = 'THEATRE' or name = 'Movies') and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                    'fields': "files(id, name)",
+                    'pageSize': 1
                 });
                 
                 const found = searchResp.result.files;
 
                 if (found && found.length > 0) {
-                    // FOUND IT! Set this as the new App Root
                     appRootId = found[0].id;
                     appRootName = found[0].name;
-                    console.log(`Theatre folder found: ${appRootName}`);
+                    console.log(`FOUND HOME: ${appRootName} (${appRootId})`);
                 } else {
-                    console.log("Theatre folder not found. Defaulting to Drive Root.");
+                    console.log("No specific Theatre folder found, defaulting to Drive Root.");
                 }
             } catch (e) {
-                console.warn("Search for theatre folder failed, using root.");
+                console.warn("Folder search failed:", e);
             }
 
-            // Load whatever we decided is the root
+            // Load the decided root
             loadFolder(appRootId, appRootName);
         }
 
@@ -347,7 +343,6 @@
             loader.style.display = 'block';
 
             try {
-                // Query: Folders OR Videos, Not Trashed
                 const query = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'video/') and trashed = false`;
                 
                 const response = await gapi.client.drive.files.list({
@@ -366,7 +361,6 @@
                     files.forEach(renderCard);
                 }
 
-                // Update State & UI
                 currentFolderId = folderId;
                 currentFolderName = folderName;
                 updateNavUI();
@@ -374,7 +368,6 @@
             } catch (err) {
                 console.error(err);
                 if(err.result && err.result.error.code == 401) {
-                    alert("Session expired. Signing out...");
                     signOut();
                 }
             }
@@ -387,12 +380,10 @@
             
             card.className = isFolder ? 'card folder-card' : 'card';
             
-            // Image Logic
             let imgHTML = '';
             if(isFolder) {
                 imgHTML = `<div class="card-image">📁</div>`;
             } else {
-                // Use higher res thumbnail (s600)
                 let thumb = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : '';
                 imgHTML = `<img class="card-image" src="${thumb}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Img'">`;
             }
@@ -404,7 +395,6 @@
                 </div>
             `;
 
-            // Click Logic
             card.onclick = () => {
                 if(isFolder) {
                     folderHistory.push({id: currentFolderId, name: currentFolderName});
@@ -426,7 +416,6 @@
         }
 
         function goHome() {
-            // Reset to our specific App Root (Theatre folder)
             folderHistory = [];
             loadFolder(appRootId, appRootName);
         }
@@ -439,10 +428,8 @@
             const btnBack = document.getElementById('btn-back');
             const pathDisplay = document.getElementById('path-display');
             
-            // Enable/Disable Back Button
             btnBack.disabled = (folderHistory.length === 0);
             
-            // Breadcrumbs text
             let pathText = appRootName;
             if(folderHistory.length > 0) {
                 pathText += " / ... / " + currentFolderName;
