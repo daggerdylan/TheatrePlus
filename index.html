@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Drive Theatre</title>
+    <style>
+        /* THEATRE THEME (Dark Mode) */
+        body {
+            background-color: #141414;
+            color: white;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 20px; }
+
+        /* LOGIN BUTTON */
+        #auth-btn {
+            background-color: #e50914; /* Netflix Red */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: block;
+            margin: 20% auto;
+        }
+        #auth-btn:hover { background-color: #f40612; }
+
+        /* MOVIE GRID */
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            display: none; /* Hidden until logged in */
+        }
+
+        .movie-card {
+            background-color: #2f2f2f;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .movie-card:hover { transform: scale(1.05); }
+
+        .movie-card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+
+        .movie-title {
+            padding: 10px;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* VIDEO PLAYER OVERLAY */
+        #player-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black;
+            z-index: 1000;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 50%;
+            z-index: 1001;
+        }
+    </style>
+    
+    <!-- GOOGLE SCRIPTS -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+</head>
+<body>
+
+    <!-- UI ELEMENTS -->
+    <h1 id="app-title">My Theatre</h1>
+    <button id="auth-btn" onclick="handleAuthClick()">Sign In to Drive</button>
+    <div id="video-grid"></div>
+
+    <!-- PLAYER OVERLAY -->
+    <div id="player-modal">
+        <div id="close-btn" onclick="closePlayer()">X</div>
+        <iframe id="video-frame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+
+    <!-- LOGIC -->
+    <script>
+        // CONFIGURATION (Filled from your data)
+        const CLIENT_ID = '370882159345-q3isltr9k94nev63qu8tthehup87ko5k.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyAZZ92GDFXbfp5tsqJEZ3xbfzbU85yGP0c';
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+
+        // 1. LOAD LIBRARIES
+        window.onload = function() {
+            gapi.load('client', intializeGapiClient);
+            google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // Defined later
+            });
+            gisInited = true;
+        };
+
+        // 2. SETUP GAPI
+        async function intializeGapiClient() {
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            gapiInited = true;
+        }
+
+        // 3. HANDLE LOGIN CLICK
+        function handleAuthClick() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: async (resp) => {
+                    if (resp.error) {
+                        throw (resp);
+                    }
+                    document.getElementById('auth-btn').style.display = 'none';
+                    document.getElementById('video-grid').style.display = 'grid';
+                    await listVideos();
+                },
+            });
+            
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        // 4. FIND MOVIES
+        async function listVideos() {
+            try {
+                // Search for all video files, not in trash
+                const response = await gapi.client.drive.files.list({
+                    'pageSize': 50,
+                    'fields': "files(id, name, thumbnailLink, mimeType)",
+                    'q': "mimeType contains 'video/' and trashed = false"
+                });
+
+                const files = response.result.files;
+                const grid = document.getElementById('video-grid');
+
+                if (!files || files.length == 0) {
+                    grid.innerHTML = '<p>No videos found in your Drive.</p>';
+                    return;
+                }
+
+                files.forEach(file => {
+                    // Create Card
+                    const card = document.createElement('div');
+                    card.className = 'movie-card';
+                    
+                    // Get Thumbnail (use a higher resolution if possible by replacing s220 with s600)
+                    let thumbUrl = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : 'https://via.placeholder.com/200x300?text=No+Preview';
+                    
+                    card.innerHTML = `
+                        <img src="${thumbUrl}" alt="${file.name}">
+                        <div class="movie-title">${file.name}</div>
+                    `;
+                    
+                    // On Click -> Play
+                    card.onclick = () => playVideo(file.id);
+                    grid.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert("Error loading videos. Check console for details.");
+            }
+        }
+
+        // 5. PLAY VIDEO
+        function playVideo(fileId) {
+            const modal = document.getElementById('player-modal');
+            const iframe = document.getElementById('video-frame');
+            
+            // Use Google's Preview URL (Handles MKV/AVI/MP4 automatically)
+            iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+            
+            modal.style.display = 'block';
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            const iframe = document.getElementById('video-frame');
+            iframe.src = ""; // Stop video
+            modal.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
