@@ -14,7 +14,33 @@
             padding: 20px;
         }
 
-        h1 { margin-bottom: 20px; }
+        h1 { margin-bottom: 20px; display: inline-block;}
+
+        /* NAVIGATION BAR */
+        #nav-bar {
+            display: none; /* Hidden until logged in */
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        #back-btn {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+            display: none; /* Hidden at root */
+        }
+        #back-btn:hover { background-color: #555; }
+
+        #current-path {
+            margin-left: 15px;
+            color: #aaa;
+            font-size: 14px;
+        }
 
         /* LOGIN BUTTON */
         #auth-btn {
@@ -30,36 +56,56 @@
         }
         #auth-btn:hover { background-color: #f40612; }
 
-        /* MOVIE GRID */
+        /* GRID SYSTEM */
         #video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 20px;
-            display: none; /* Hidden until logged in */
+            display: none;
         }
 
-        .movie-card {
+        /* CARDS (Files & Folders) */
+        .card {
             background-color: #2f2f2f;
             border-radius: 8px;
             overflow: hidden;
             transition: transform 0.2s;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
         }
-        .movie-card:hover { transform: scale(1.05); }
+        .card:hover { transform: scale(1.03); background-color: #404040; }
 
-        .movie-card img {
+        .card-img-wrapper {
             width: 100%;
-            height: 300px;
+            height: 250px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
         }
 
-        .movie-title {
-            padding: 10px;
+        /* Folder Icon Styling */
+        .folder-icon {
+            font-size: 80px;
+            color: #ffd700; /* Gold color for folders */
+        }
+
+        .card-title {
+            padding: 15px;
             font-size: 14px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             text-align: center;
+            /* Allow full text display */
+            white-space: normal; 
+            overflow: visible;
+            word-wrap: break-word;
+            line-height: 1.4;
         }
 
         /* VIDEO PLAYER OVERLAY */
@@ -99,6 +145,12 @@
 
     <!-- UI ELEMENTS -->
     <h1 id="app-title">My Theatre</h1>
+    
+    <div id="nav-bar">
+        <button id="back-btn" onclick="goBack()">⬅ Back</button>
+        <span id="current-path">Location: /</span>
+    </div>
+
     <button id="auth-btn" onclick="handleAuthClick()">Sign In to Drive</button>
     <div id="video-grid"></div>
 
@@ -110,15 +162,15 @@
 
     <!-- LOGIC -->
     <script>
-        // CONFIGURATION (Filled from your data)
+        // CONFIGURATION
         const CLIENT_ID = '370882159345-q3isltr9k94nev63qu8tthehup87ko5k.apps.googleusercontent.com';
         const API_KEY = 'AIzaSyAZZ92GDFXbfp5tsqJEZ3xbfzbU85yGP0c';
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
         let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
+        let folderHistory = []; // Keeps track of where we are
+        let currentFolderId = 'root';
 
         // 1. LOAD LIBRARIES
         window.onload = function() {
@@ -126,9 +178,8 @@
             google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: '', // Defined later
+                callback: '', 
             });
-            gisInited = true;
         };
 
         // 2. SETUP GAPI
@@ -137,7 +188,6 @@
                 apiKey: API_KEY,
                 discoveryDocs: [DISCOVERY_DOC],
             });
-            gapiInited = true;
         }
 
         // 3. HANDLE LOGIN CLICK
@@ -146,12 +196,14 @@
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: async (resp) => {
-                    if (resp.error) {
-                        throw (resp);
-                    }
+                    if (resp.error) throw (resp);
+                    
                     document.getElementById('auth-btn').style.display = 'none';
                     document.getElementById('video-grid').style.display = 'grid';
-                    await listVideos();
+                    document.getElementById('nav-bar').style.display = 'block';
+                    
+                    // Start at Root
+                    await loadFolder('root', 'Home');
                 },
             });
             
@@ -162,63 +214,120 @@
             }
         }
 
-        // 4. FIND MOVIES
-        async function listVideos() {
+        // 4. LOAD FOLDER CONTENTS
+        async function loadFolder(folderId, folderName) {
             try {
-                // Search for all video files, not in trash
+                // Update history if moving forward
+                if (folderId !== currentFolderId) {
+                    // Only push if we aren't refreshing current
+                }
+
+                const grid = document.getElementById('video-grid');
+                grid.innerHTML = '<p style="color:#aaa;">Loading...</p>';
+
+                // Query: Inside specific folder AND (is a Folder OR is a Video)
+                // We exclude trash.
+                const query = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'video/') and trashed = false`;
+
                 const response = await gapi.client.drive.files.list({
-                    'pageSize': 50,
-                    'fields': "files(id, name, thumbnailLink, mimeType)",
-                    'q': "mimeType contains 'video/' and trashed = false"
+                    'pageSize': 100,
+                    'fields': "files(id, name, mimeType, thumbnailLink)",
+                    'orderBy': 'folder, name', // Folders first, then A-Z
+                    'q': query
                 });
 
                 const files = response.result.files;
-                const grid = document.getElementById('video-grid');
+                grid.innerHTML = ''; // Clear loading text
 
                 if (!files || files.length == 0) {
-                    grid.innerHTML = '<p>No videos found in your Drive.</p>';
+                    grid.innerHTML = '<p>No videos or folders here.</p>';
                     return;
                 }
 
+                // Update UI State
+                currentFolderId = folderId;
+                updateNavBar();
+
                 files.forEach(file => {
-                    // Create Card
-                    const card = document.createElement('div');
-                    card.className = 'movie-card';
-                    
-                    // Get Thumbnail (use a higher resolution if possible by replacing s220 with s600)
-                    let thumbUrl = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : 'https://via.placeholder.com/200x300?text=No+Preview';
-                    
-                    card.innerHTML = `
-                        <img src="${thumbUrl}" alt="${file.name}">
-                        <div class="movie-title">${file.name}</div>
-                    `;
-                    
-                    // On Click -> Play
-                    card.onclick = () => playVideo(file.id);
-                    grid.appendChild(card);
+                    createCard(file);
                 });
 
             } catch (err) {
                 console.error(err);
-                alert("Error loading videos. Check console for details.");
+                alert("Error loading folder. See console.");
             }
         }
 
-        // 5. PLAY VIDEO
+        // 5. CREATE UI CARDS
+        function createCard(file) {
+            const grid = document.getElementById('video-grid');
+            const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            // Determine Image (Folder Icon or Thumbnail)
+            let imgContent = '';
+            if (isFolder) {
+                // Folder Icon (Using simple SVG or emoji for reliability)
+                imgContent = `<div class="folder-icon">📁</div>`;
+            } else {
+                // Video Thumbnail
+                let thumbUrl = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : 'https://via.placeholder.com/200x300?text=No+Preview';
+                imgContent = `<img src="${thumbUrl}" alt="${file.name}">`;
+            }
+
+            card.innerHTML = `
+                <div class="card-img-wrapper">${imgContent}</div>
+                <div class="card-title">${file.name}</div>
+            `;
+
+            // Click Action
+            if (isFolder) {
+                card.onclick = () => {
+                    folderHistory.push(currentFolderId); // Save current place
+                    loadFolder(file.id, file.name);
+                };
+            } else {
+                card.onclick = () => playVideo(file.id);
+            }
+
+            grid.appendChild(card);
+        }
+
+        // 6. NAVIGATION LOGIC
+        function goBack() {
+            if (folderHistory.length > 0) {
+                const prevId = folderHistory.pop(); // Get last ID
+                loadFolder(prevId);
+            }
+        }
+
+        function updateNavBar() {
+            const backBtn = document.getElementById('back-btn');
+            const pathLabel = document.getElementById('current-path');
+
+            if (folderHistory.length === 0) {
+                backBtn.style.display = 'none';
+                pathLabel.innerText = "Location: Home";
+            } else {
+                backBtn.style.display = 'inline-block';
+                pathLabel.innerText = "Location: / ...";
+            }
+        }
+
+        // 7. PLAY VIDEO
         function playVideo(fileId) {
             const modal = document.getElementById('player-modal');
             const iframe = document.getElementById('video-frame');
-            
-            // Use Google's Preview URL (Handles MKV/AVI/MP4 automatically)
             iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
-            
             modal.style.display = 'block';
         }
 
         function closePlayer() {
             const modal = document.getElementById('player-modal');
             const iframe = document.getElementById('video-frame');
-            iframe.src = ""; // Stop video
+            iframe.src = "";
             modal.style.display = 'none';
         }
     </script>
