@@ -43,6 +43,11 @@
         }
 
         /* LOGIN BUTTON */
+        #auth-container {
+            text-align: center;
+            margin-top: 20%;
+        }
+
         #auth-btn {
             background-color: #e50914; /* Netflix Red */
             color: white;
@@ -51,8 +56,6 @@
             font-size: 18px;
             cursor: pointer;
             border-radius: 4px;
-            display: block;
-            margin: 20% auto;
         }
         #auth-btn:hover { background-color: #f40612; }
 
@@ -73,6 +76,7 @@
             cursor: pointer;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
         .card:hover { transform: scale(1.03); background-color: #404040; }
 
@@ -101,7 +105,6 @@
             padding: 15px;
             font-size: 14px;
             text-align: center;
-            /* Allow full text display */
             white-space: normal; 
             overflow: visible;
             word-wrap: break-word;
@@ -149,9 +152,14 @@
     <div id="nav-bar">
         <button id="back-btn" onclick="goBack()">⬅ Back</button>
         <span id="current-path">Location: /</span>
+        <button onclick="signOut()" style="float:right; background:none; border:none; color:#aaa; cursor:pointer;">Sign Out</button>
     </div>
 
-    <button id="auth-btn" onclick="handleAuthClick()">Sign In to Drive</button>
+    <div id="auth-container">
+        <button id="auth-btn" onclick="handleAuthClick()">Sign In to Drive</button>
+        <p id="loading-msg" style="display:none; color:#aaa;">Restoring session...</p>
+    </div>
+
     <div id="video-grid"></div>
 
     <!-- PLAYER OVERLAY -->
@@ -169,82 +177,97 @@
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
         let tokenClient;
-        let folderHistory = []; // Keeps track of where we are
+        let folderHistory = []; 
         let currentFolderId = 'root';
 
-        // 1. LOAD LIBRARIES
+        // 1. INITIALIZATION
         window.onload = function() {
-            gapi.load('client', intializeGapiClient);
-            google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', 
+            gapi.load('client', async () => {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                
+                // CHECK IF WE HAVE A SAVED TOKEN
+                tryRestoreSession();
             });
-        };
 
-        // 2. SETUP GAPI
-        async function intializeGapiClient() {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-        }
-
-        // 3. HANDLE LOGIN CLICK
-        function handleAuthClick() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: async (resp) => {
                     if (resp.error) throw (resp);
                     
-                    document.getElementById('auth-btn').style.display = 'none';
-                    document.getElementById('video-grid').style.display = 'grid';
-                    document.getElementById('nav-bar').style.display = 'block';
-                    
-                    // Start at Root
-                    await loadFolder('root', 'Home');
+                    // SAVE TOKEN TO LOCAL STORAGE (Expires in 1 hr)
+                    const expiry = Date.now() + (resp.expires_in * 1000);
+                    localStorage.setItem('drive_token', resp.access_token);
+                    localStorage.setItem('drive_token_expiry', expiry);
+
+                    showApp();
                 },
             });
-            
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
+        };
+
+        // 2. SESSION MANAGEMENT
+        function tryRestoreSession() {
+            const storedToken = localStorage.getItem('drive_token');
+            const storedExpiry = localStorage.getItem('drive_token_expiry');
+
+            if (storedToken && storedExpiry) {
+                if (Date.now() < parseInt(storedExpiry)) {
+                    // Token is still valid! Use it.
+                    document.getElementById('auth-btn').style.display = 'none';
+                    document.getElementById('loading-msg').style.display = 'block';
+                    
+                    gapi.client.setToken({access_token: storedToken});
+                    showApp();
+                    return;
+                }
             }
+            // If we get here, no valid token. User must click button.
         }
 
-        // 4. LOAD FOLDER CONTENTS
+        function handleAuthClick() {
+            tokenClient.requestAccessToken({prompt: ''});
+        }
+
+        function signOut() {
+            localStorage.removeItem('drive_token');
+            localStorage.removeItem('drive_token_expiry');
+            location.reload();
+        }
+
+        async function showApp() {
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('video-grid').style.display = 'grid';
+            document.getElementById('nav-bar').style.display = 'block';
+            await loadFolder('root', 'Home');
+        }
+
+        // 3. LOAD FOLDER CONTENTS
         async function loadFolder(folderId, folderName) {
             try {
-                // Update history if moving forward
-                if (folderId !== currentFolderId) {
-                    // Only push if we aren't refreshing current
-                }
-
                 const grid = document.getElementById('video-grid');
-                grid.innerHTML = '<p style="color:#aaa;">Loading...</p>';
+                grid.innerHTML = '<p style="color:#aaa;">Loading content...</p>';
 
-                // Query: Inside specific folder AND (is a Folder OR is a Video)
-                // We exclude trash.
+                // Query: Folders OR Videos, No Trash
                 const query = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'video/') and trashed = false`;
 
                 const response = await gapi.client.drive.files.list({
                     'pageSize': 100,
                     'fields': "files(id, name, mimeType, thumbnailLink)",
-                    'orderBy': 'folder, name', // Folders first, then A-Z
+                    'orderBy': 'folder, name',
                     'q': query
                 });
 
                 const files = response.result.files;
-                grid.innerHTML = ''; // Clear loading text
+                grid.innerHTML = ''; 
 
                 if (!files || files.length == 0) {
                     grid.innerHTML = '<p>No videos or folders here.</p>';
                     return;
                 }
 
-                // Update UI State
                 currentFolderId = folderId;
                 updateNavBar();
 
@@ -254,11 +277,16 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Error loading folder. See console.");
+                if(err.result && err.result.error.code == 401) {
+                    alert("Session expired. Please sign in again.");
+                    signOut();
+                } else {
+                    grid.innerHTML = '<p>Error loading files.</p>';
+                }
             }
         }
 
-        // 5. CREATE UI CARDS
+        // 4. CREATE UI CARDS
         function createCard(file) {
             const grid = document.getElementById('video-grid');
             const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
@@ -266,13 +294,10 @@
             const card = document.createElement('div');
             card.className = 'card';
 
-            // Determine Image (Folder Icon or Thumbnail)
             let imgContent = '';
             if (isFolder) {
-                // Folder Icon (Using simple SVG or emoji for reliability)
                 imgContent = `<div class="folder-icon">📁</div>`;
             } else {
-                // Video Thumbnail
                 let thumbUrl = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : 'https://via.placeholder.com/200x300?text=No+Preview';
                 imgContent = `<img src="${thumbUrl}" alt="${file.name}">`;
             }
@@ -282,10 +307,9 @@
                 <div class="card-title">${file.name}</div>
             `;
 
-            // Click Action
             if (isFolder) {
                 card.onclick = () => {
-                    folderHistory.push(currentFolderId); // Save current place
+                    folderHistory.push(currentFolderId);
                     loadFolder(file.id, file.name);
                 };
             } else {
@@ -295,10 +319,10 @@
             grid.appendChild(card);
         }
 
-        // 6. NAVIGATION LOGIC
+        // 5. NAVIGATION
         function goBack() {
             if (folderHistory.length > 0) {
-                const prevId = folderHistory.pop(); // Get last ID
+                const prevId = folderHistory.pop();
                 loadFolder(prevId);
             }
         }
@@ -316,7 +340,7 @@
             }
         }
 
-        // 7. PLAY VIDEO
+        // 6. PLAYER
         function playVideo(fileId) {
             const modal = document.getElementById('player-modal');
             const iframe = document.getElementById('video-frame');
