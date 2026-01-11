@@ -4,92 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Theatre</title>
-    <!-- Modern Font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #E50914;
-            --bg-color: #141414;
+            --primary: #E50914; /* Netflix Red */
+            --bg-color: #0f0f0f;
+            --sidebar-bg: #000000;
             --card-bg: #1f1f1f;
-            --text-color: #ffffff;
-            --text-secondary: #b3b3b3;
-            --header-bg: rgba(20, 20, 20, 0.9);
+            --text-main: #ffffff;
+            --text-muted: #b3b3b3;
+            --header-height: 70px;
+            --sidebar-width: 260px;
         }
 
         * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg-color);
-            color: var(--text-color);
+            color: var(--text-main);
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            padding-top: 80px; /* Space for fixed header */
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll, handle inside containers */
         }
-
-        /* --- HEADER & NAVIGATION --- */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 70px;
-            background-color: var(--header-bg);
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 40px;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-
-        .brand {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-        }
-
-        .nav-controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .nav-btn {
-            background: #333;
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .nav-btn:hover { background: #555; }
-        .nav-btn:disabled { opacity: 0.3; cursor: default; }
-
-        .sign-out {
-            background-color: transparent;
-            border: 1px solid #555;
-        }
-        .sign-out:hover { border-color: white; background: transparent; }
 
         /* --- LOGIN SCREEN --- */
         #auth-container {
-            height: 80vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
+            background: radial-gradient(circle at center, #222, #000);
+            z-index: 2000;
+            position: absolute;
+            top: 0; left: 0; width: 100%;
         }
 
         #login-btn {
@@ -104,104 +55,162 @@
             margin-top: 20px;
             transition: transform 0.2s;
         }
-        #login-btn:hover { transform: scale(1.05); background-color: #ff0f1f; }
+        #login-btn:hover { transform: scale(1.05); }
 
-        /* --- CONTENT GRID --- */
-        #main-container {
-            padding: 20px 40px;
-            display: none; /* Hidden until logged in */
+        /* --- APP LAYOUT --- */
+        #app-layout {
+            display: none; /* Hidden until login */
+            display: grid;
+            grid-template-rows: var(--header-height) 1fr;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            height: 100vh;
         }
 
-        .path-label {
-            color: var(--text-secondary);
+        /* HEADER */
+        header {
+            grid-column: 1 / -1;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid #333;
+            z-index: 100;
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .header-controls button {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .header-controls button:hover { background: #555; }
+
+        /* SIDEBAR */
+        #sidebar {
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sidebar-title {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #ddd;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .nav-item:hover { background-color: #333; color: white; }
+        .nav-item.active { background-color: #333; color: var(--primary); font-weight: 500; }
+        .nav-item i { font-style: normal; }
+
+        /* MAIN CONTENT */
+        #main-view {
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        #breadcrumbs {
             margin-bottom: 20px;
+            color: var(--text-muted);
             font-size: 0.9rem;
         }
 
-        .grid {
+        /* GRID FOR VIDEOS */
+        .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 25px;
         }
 
-        /* --- CARDS --- */
+        /* VIDEO CARD */
         .card {
             background-color: var(--card-bg);
             border-radius: 6px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: transform 0.3s;
             position: relative;
         }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 
-        .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.6);
-            z-index: 2;
-        }
-
-        .card-image {
+        .card-img {
             width: 100%;
-            aspect-ratio: 2/3; /* Classic movie poster ratio */
+            aspect-ratio: 2/3;
             object-fit: cover;
             background: #000;
         }
 
-        .card-overlay {
-            padding: 12px;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-        }
-
         .card-title {
-            font-size: 0.95rem;
-            font-weight: 500;
+            padding: 10px;
+            font-size: 0.9rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .folder-card .card-image {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #2a2a2a;
-            font-size: 60px;
-        }
-
-        /* --- LOADING SPINNER --- */
+        /* LOADING */
         #loader {
             display: none;
+            width: 40px; height: 40px;
             border: 4px solid #333;
-            border-top: 4px solid var(--primary);
+            border-top-color: var(--primary);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+            animation: spin 1s infinite linear;
             margin: 50px auto;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- VIDEO MODAL --- */
+        /* PLAYER MODAL */
         #player-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            z-index: 1000;
+            background: black;
+            z-index: 5000;
         }
         #video-frame { width: 100%; height: 100%; border: none; }
-        
         #close-player {
-            position: absolute;
-            top: 20px; right: 30px;
-            color: white;
-            font-size: 40px;
-            cursor: pointer;
-            opacity: 0.7;
-            z-index: 1001;
+            position: absolute; top: 20px; right: 30px;
+            color: white; font-size: 40px; cursor: pointer; z-index: 5001;
         }
-        #close-player:hover { opacity: 1; }
 
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            #app-layout { grid-template-columns: 1fr; }
+            #sidebar { display: none; } /* Hide sidebar on mobile for now */
+        }
     </style>
     <!-- GOOGLE APIS -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -209,30 +218,54 @@
 </head>
 <body>
 
-    <!-- HEADER -->
-    <header id="app-header" style="display:none;">
-        <div class="brand" onclick="goHome()">THEATRE</div>
-        <div class="nav-controls">
-            <button class="nav-btn" id="btn-home" onclick="goHome()">🏠 Home</button>
-            <button class="nav-btn" id="btn-back" onclick="goBack()" disabled>⬅ Back</button>
-            <button class="nav-btn" id="btn-refresh" onclick="refreshFolder()">↻</button>
-            <button class="nav-btn sign-out" onclick="signOut()">Sign Out</button>
-        </div>
-    </header>
-
-    <!-- LOGIN -->
+    <!-- LOGIN OVERLAY -->
     <div id="auth-container">
         <h1 style="font-size: 3rem; margin-bottom: 0;">MY THEATRE</h1>
-        <p style="color:#777; margin-bottom: 40px;">Your personal cloud cinema</p>
+        <p style="color:#777; margin-bottom: 40px;">Streaming Service Dashboard</p>
         <button id="login-btn" onclick="handleAuthClick()">Sign In with Google</button>
-        <div id="loading-txt" style="display:none; margin-top:20px; color:#666;">Restoring session...</div>
+        <div id="loading-txt" style="display:none; margin-top:20px; color:#666;">Connecting...</div>
     </div>
 
-    <!-- MAIN APP -->
-    <div id="main-container">
-        <div class="path-label" id="path-display">Location: /</div>
-        <div id="loader"></div>
-        <div class="grid" id="video-grid"></div>
+    <!-- MAIN APP STRUCTURE -->
+    <div id="app-layout" style="display:none;">
+        
+        <!-- TOP HEADER -->
+        <header>
+            <div class="brand" onclick="goHome()">THEATRE</div>
+            <div class="header-controls">
+                <span id="user-email" style="font-size:0.8rem; color:#888; margin-right:10px;"></span>
+                <button onclick="refreshFolder()">Refresh</button>
+                <button onclick="signOut()">Sign Out</button>
+            </div>
+        </header>
+
+        <!-- LEFT SIDEBAR -->
+        <aside id="sidebar">
+            <div class="nav-item" onclick="goHome()">
+                <i>🏠</i> Home / Root
+            </div>
+            
+            <div class="nav-item" id="btn-back" onclick="goBack()" style="display:none; color: var(--primary);">
+                <i>⬅</i> Back
+            </div>
+
+            <div class="sidebar-title">FOLDERS</div>
+            <!-- Folder List Injected Here -->
+            <div id="folder-list"></div>
+        </aside>
+
+        <!-- RIGHT CONTENT -->
+        <main id="main-view">
+            <div id="breadcrumbs">Location: Home</div>
+            
+            <div id="loader"></div>
+            
+            <div id="content-area">
+                <div class="sidebar-title">VIDEOS</div>
+                <div class="video-grid" id="video-grid"></div>
+            </div>
+        </main>
+
     </div>
 
     <!-- PLAYER -->
@@ -242,22 +275,20 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
         const CLIENT_ID = '370882159345-q3isltr9k94nev63qu8tthehup87ko5k.apps.googleusercontent.com';
         const API_KEY = 'AIzaSyAZZ92GDFXbfp5tsqJEZ3xbfzbU85yGP0c';
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         const DISCOVERY = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
-        // --- STATE ---
         let tokenClient;
         let folderHistory = []; 
         let currentFolderId = 'root';
         let currentFolderName = 'Home';
         
+        // Where the app "starts"
         let appRootId = 'root';
         let appRootName = 'Home';
 
-        // 1. INITIALIZE
         window.onload = function() {
             gapi.load('client', async () => {
                 await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY] });
@@ -277,7 +308,6 @@
             });
         };
 
-        // 2. AUTHENTICATION
         function tryRestoreSession() {
             const token = localStorage.getItem('drive_token');
             const expiry = localStorage.getItem('drive_token_expiry');
@@ -299,52 +329,44 @@
             location.reload();
         }
 
-        // 3. STARTUP LOGIC (DEEP SCAN)
+        // --- SCAN FOR ROOT FOLDER ---
         async function enterApp() {
             document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('app-header').style.display = 'flex';
-            document.getElementById('main-container').style.display = 'block';
-
-            const loader = document.getElementById('loader');
-            loader.style.display = 'block';
-
-            // SCAN: Look everywhere for theatre/movies folder
-            // We removed "'root' in parents" so it searches nested folders too
+            document.getElementById('app-layout').style.display = 'grid'; // Enable Grid Layout
+            
+            // Look for 'Theatre' or 'Movies' folder anywhere in Drive
             try {
                 const searchResp = await gapi.client.drive.files.list({
-                    'q': "(name = 'theatre' or name = 'Theatre' or name = 'THEATRE' or name = 'Movies') and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                    'q': "(name = 'theatre' or name = 'Theatre' or name = 'Movies') and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
                     'fields': "files(id, name)",
                     'pageSize': 1
                 });
                 
-                const found = searchResp.result.files;
-
-                if (found && found.length > 0) {
-                    appRootId = found[0].id;
-                    appRootName = found[0].name;
-                    console.log(`FOUND HOME: ${appRootName} (${appRootId})`);
-                } else {
-                    console.log("No specific Theatre folder found, defaulting to Drive Root.");
+                if (searchResp.result.files.length > 0) {
+                    appRootId = searchResp.result.files[0].id;
+                    appRootName = searchResp.result.files[0].name;
                 }
-            } catch (e) {
-                console.warn("Folder search failed:", e);
-            }
+            } catch (e) { console.warn("Search failed, using root"); }
 
-            // Load the decided root
             loadFolder(appRootId, appRootName);
         }
 
-        // 4. FOLDER LOGIC
+        // --- MAIN LOAD LOGIC ---
         async function loadFolder(folderId, folderName) {
-            const grid = document.getElementById('video-grid');
+            const videoGrid = document.getElementById('video-grid');
+            const folderList = document.getElementById('folder-list');
             const loader = document.getElementById('loader');
-            
-            grid.innerHTML = '';
+            const breadcrumbs = document.getElementById('breadcrumbs');
+
+            // Clear Views
+            videoGrid.innerHTML = '';
+            folderList.innerHTML = '';
             loader.style.display = 'block';
+            breadcrumbs.innerText = `Browsing: ${folderName}`;
 
             try {
+                // Fetch everything in this folder
                 const query = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'video/') and trashed = false`;
-                
                 const response = await gapi.client.drive.files.list({
                     'pageSize': 100,
                     'fields': "files(id, name, mimeType, thumbnailLink)",
@@ -353,61 +375,57 @@
                 });
 
                 loader.style.display = 'none';
-                const files = response.result.files;
+                const files = response.result.files || [];
 
-                if (!files || files.length === 0) {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#555; margin-top:50px;">Folder is empty</div>';
+                // SEPARATE FOLDERS vs VIDEOS
+                const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+                const videos = files.filter(f => f.mimeType.includes('video/'));
+
+                // 1. RENDER SIDEBAR FOLDERS
+                if (folders.length === 0) {
+                    folderList.innerHTML = '<div style="padding:15px; color:#555; font-size:0.8rem;">No Subfolders</div>';
                 } else {
-                    files.forEach(renderCard);
+                    folders.forEach(f => {
+                        const div = document.createElement('div');
+                        div.className = 'nav-item';
+                        div.innerHTML = `<i>📁</i> ${f.name}`;
+                        div.onclick = () => {
+                            folderHistory.push({id: currentFolderId, name: currentFolderName});
+                            loadFolder(f.id, f.name);
+                        };
+                        folderList.appendChild(div);
+                    });
+                }
+
+                // 2. RENDER MAIN VIDEO GRID
+                if (videos.length === 0) {
+                    videoGrid.innerHTML = '<div style="color:#555; padding:20px;">No videos in this folder.</div>';
+                } else {
+                    videos.forEach(v => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        let thumb = v.thumbnailLink ? v.thumbnailLink.replace('s220', 's600') : '';
+                        
+                        card.innerHTML = `
+                            <img class="card-img" src="${thumb}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Img'">
+                            <div class="card-title">${v.name}</div>
+                        `;
+                        card.onclick = () => playVideo(v.id);
+                        videoGrid.appendChild(card);
+                    });
                 }
 
                 currentFolderId = folderId;
                 currentFolderName = folderName;
-                updateNavUI();
+                updateBackBtn();
 
             } catch (err) {
                 console.error(err);
-                if(err.result && err.result.error.code == 401) {
-                    signOut();
-                }
+                if(err.result && err.result.error.code == 401) signOut();
             }
         }
 
-        function renderCard(file) {
-            const grid = document.getElementById('video-grid');
-            const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
-            const card = document.createElement('div');
-            
-            card.className = isFolder ? 'card folder-card' : 'card';
-            
-            let imgHTML = '';
-            if(isFolder) {
-                imgHTML = `<div class="card-image">📁</div>`;
-            } else {
-                let thumb = file.thumbnailLink ? file.thumbnailLink.replace('s220', 's600') : '';
-                imgHTML = `<img class="card-image" src="${thumb}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Img'">`;
-            }
-
-            card.innerHTML = `
-                ${imgHTML}
-                <div class="card-overlay">
-                    <div class="card-title">${file.name}</div>
-                </div>
-            `;
-
-            card.onclick = () => {
-                if(isFolder) {
-                    folderHistory.push({id: currentFolderId, name: currentFolderName});
-                    loadFolder(file.id, file.name);
-                } else {
-                    playVideo(file.id);
-                }
-            };
-
-            grid.appendChild(card);
-        }
-
-        // 5. NAVIGATION CONTROLS
+        // --- NAVIGATION ---
         function goBack() {
             if (folderHistory.length > 0) {
                 const prev = folderHistory.pop();
@@ -424,20 +442,12 @@
             loadFolder(currentFolderId, currentFolderName);
         }
 
-        function updateNavUI() {
-            const btnBack = document.getElementById('btn-back');
-            const pathDisplay = document.getElementById('path-display');
-            
-            btnBack.disabled = (folderHistory.length === 0);
-            
-            let pathText = appRootName;
-            if(folderHistory.length > 0) {
-                pathText += " / ... / " + currentFolderName;
-            }
-            pathDisplay.innerText = pathText;
+        function updateBackBtn() {
+            const btn = document.getElementById('btn-back');
+            btn.style.display = (folderHistory.length > 0) ? 'flex' : 'none';
         }
 
-        // 6. PLAYER
+        // --- PLAYER ---
         function playVideo(id) {
             const modal = document.getElementById('player-modal');
             const iframe = document.getElementById('video-frame');
