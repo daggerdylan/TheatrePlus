@@ -14,7 +14,7 @@
             --text-main: #ffffff;
             --text-muted: #b3b3b3;
             --header-height: 70px;
-            --sidebar-width: 260px;
+            --sidebar-width: 300px;
         }
 
         * { box-sizing: border-box; }
@@ -26,7 +26,7 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            overflow: hidden; /* Prevent body scroll, handle inside containers */
+            overflow: hidden;
         }
 
         /* --- LOGIN SCREEN --- */
@@ -36,7 +36,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            text-align: center;
             background: radial-gradient(circle at center, #222, #000);
             z-index: 2000;
             position: absolute;
@@ -46,20 +45,19 @@
         #login-btn {
             background-color: var(--primary);
             color: white;
-            font-size: 1.2rem;
             padding: 15px 40px;
             border: none;
             border-radius: 4px;
-            cursor: pointer;
+            font-size: 1.2rem;
             font-weight: bold;
+            cursor: pointer;
             margin-top: 20px;
-            transition: transform 0.2s;
         }
         #login-btn:hover { transform: scale(1.05); }
 
         /* --- APP LAYOUT --- */
         #app-layout {
-            display: none; /* Hidden until login */
+            display: none;
             display: grid;
             grid-template-rows: var(--header-height) 1fr;
             grid-template-columns: var(--sidebar-width) 1fr;
@@ -69,13 +67,12 @@
         /* HEADER */
         header {
             grid-column: 1 / -1;
-            background-color: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
+            background-color: rgba(0,0,0,0.9);
+            border-bottom: 1px solid #333;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 30px;
-            border-bottom: 1px solid #333;
             z-index: 100;
         }
 
@@ -95,73 +92,90 @@
             border-radius: 4px;
             margin-left: 10px;
             cursor: pointer;
-            font-size: 0.9rem;
         }
         .header-controls button:hover { background: #555; }
 
-        /* SIDEBAR */
+        /* SIDEBAR (The Tree View) */
         #sidebar {
             background-color: var(--sidebar-bg);
             border-right: 1px solid #333;
             overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            padding: 20px 0;
+            user-select: none;
         }
 
-        .sidebar-title {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-            margin-top: 20px;
-        }
-
-        .nav-item {
-            padding: 12px 15px;
-            border-radius: 6px;
+        /* Tree Item Styles */
+        .tree-item {
             cursor: pointer;
             color: #ddd;
-            transition: background 0.2s;
+        }
+
+        .tree-content {
+            padding: 10px 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            transition: background 0.2s;
             font-size: 0.95rem;
         }
 
-        .nav-item:hover { background-color: #333; color: white; }
-        .nav-item.active { background-color: #333; color: var(--primary); font-weight: 500; }
-        .nav-item i { font-style: normal; }
+        .tree-content:hover { background-color: #222; }
+        
+        /* Active Folder Highlight */
+        .tree-content.active {
+            background-color: #333;
+            color: var(--primary);
+            font-weight: 700;
+            border-left: 4px solid var(--primary);
+        }
+
+        .tree-arrow {
+            margin-right: 8px;
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: #777;
+        }
+        
+        .tree-icon { margin-right: 10px; }
+
+        /* Expanded/Collapsed States */
+        .expanded > .tree-content > .tree-arrow { transform: rotate(90deg); }
+        .tree-children { display: none; }
+        .expanded > .tree-children { display: block; }
+
+        /* Indentation for nested items */
+        .tree-children .tree-content { padding-left: 40px; }
+        .tree-children .tree-children .tree-content { padding-left: 60px; }
+        .tree-children .tree-children .tree-children .tree-content { padding-left: 80px; }
+
 
         /* MAIN CONTENT */
         #main-view {
             overflow-y: auto;
             padding: 30px;
+            background-color: var(--bg-color);
         }
 
         #breadcrumbs {
             margin-bottom: 20px;
             color: var(--text-muted);
             font-size: 0.9rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
         }
 
-        /* GRID FOR VIDEOS */
+        /* VIDEO GRID */
         .video-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 25px;
         }
 
-        /* VIDEO CARD */
         .card {
             background-color: var(--card-bg);
             border-radius: 6px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.3s;
-            position: relative;
+            transition: transform 0.2s;
         }
         .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 
@@ -180,7 +194,7 @@
             text-overflow: ellipsis;
         }
 
-        /* LOADING */
+        /* LOADING SPINNER */
         #loader {
             display: none;
             width: 40px; height: 40px;
@@ -206,66 +220,38 @@
             color: white; font-size: 40px; cursor: pointer; z-index: 5001;
         }
 
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            #app-layout { grid-template-columns: 1fr; }
-            #sidebar { display: none; } /* Hide sidebar on mobile for now */
-        }
     </style>
-    <!-- GOOGLE APIS -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
 
-    <!-- LOGIN OVERLAY -->
+    <!-- AUTH SCREEN -->
     <div id="auth-container">
         <h1 style="font-size: 3rem; margin-bottom: 0;">MY THEATRE</h1>
-        <p style="color:#777; margin-bottom: 40px;">Streaming Service Dashboard</p>
+        <p style="color:#777;">Streaming Service Dashboard</p>
         <button id="login-btn" onclick="handleAuthClick()">Sign In with Google</button>
         <div id="loading-txt" style="display:none; margin-top:20px; color:#666;">Connecting...</div>
     </div>
 
-    <!-- MAIN APP STRUCTURE -->
-    <div id="app-layout" style="display:none;">
-        
-        <!-- TOP HEADER -->
+    <!-- APP LAYOUT -->
+    <div id="app-layout">
         <header>
-            <div class="brand" onclick="goHome()">THEATRE</div>
+            <div class="brand" onclick="reloadRoot()">THEATRE</div>
             <div class="header-controls">
-                <span id="user-email" style="font-size:0.8rem; color:#888; margin-right:10px;"></span>
-                <button onclick="refreshFolder()">Refresh</button>
                 <button onclick="signOut()">Sign Out</button>
             </div>
         </header>
 
-        <!-- LEFT SIDEBAR -->
         <aside id="sidebar">
-            <div class="nav-item" onclick="goHome()">
-                <i>🏠</i> Home / Root
-            </div>
-            
-            <div class="nav-item" id="btn-back" onclick="goBack()" style="display:none; color: var(--primary);">
-                <i>⬅</i> Back
-            </div>
-
-            <div class="sidebar-title">FOLDERS</div>
-            <!-- Folder List Injected Here -->
-            <div id="folder-list"></div>
+            <!-- Dynamic Tree Injected Here -->
         </aside>
 
-        <!-- RIGHT CONTENT -->
         <main id="main-view">
-            <div id="breadcrumbs">Location: Home</div>
-            
+            <div id="breadcrumbs">Home</div>
             <div id="loader"></div>
-            
-            <div id="content-area">
-                <div class="sidebar-title">VIDEOS</div>
-                <div class="video-grid" id="video-grid"></div>
-            </div>
+            <div class="video-grid" id="video-grid"></div>
         </main>
-
     </div>
 
     <!-- PLAYER -->
@@ -275,20 +261,16 @@
     </div>
 
     <script>
+        // CONFIG
         const CLIENT_ID = '370882159345-q3isltr9k94nev63qu8tthehup87ko5k.apps.googleusercontent.com';
         const API_KEY = 'AIzaSyAZZ92GDFXbfp5tsqJEZ3xbfzbU85yGP0c';
         const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         const DISCOVERY = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
         let tokenClient;
-        let folderHistory = []; 
-        let currentFolderId = 'root';
-        let currentFolderName = 'Home';
-        
-        // Where the app "starts"
-        let appRootId = 'root';
-        let appRootName = 'Home';
+        let appRootId = 'root'; // Will update if 'Theatre' folder found
 
+        // 1. INITIALIZATION
         window.onload = function() {
             gapi.load('client', async () => {
                 await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY] });
@@ -311,7 +293,6 @@
         function tryRestoreSession() {
             const token = localStorage.getItem('drive_token');
             const expiry = localStorage.getItem('drive_token_expiry');
-            
             if (token && expiry && Date.now() < parseInt(expiry)) {
                 document.getElementById('login-btn').style.display = 'none';
                 document.getElementById('loading-txt').style.display = 'block';
@@ -320,53 +301,132 @@
             }
         }
 
-        function handleAuthClick() {
-            tokenClient.requestAccessToken({ prompt: '' });
-        }
+        function handleAuthClick() { tokenClient.requestAccessToken({ prompt: '' }); }
+        function signOut() { localStorage.clear(); location.reload(); }
 
-        function signOut() {
-            localStorage.clear();
-            location.reload();
-        }
-
-        // --- SCAN FOR ROOT FOLDER ---
+        // 2. STARTUP LOGIC
         async function enterApp() {
             document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('app-layout').style.display = 'grid'; // Enable Grid Layout
-            
-            // Look for 'Theatre' or 'Movies' folder anywhere in Drive
+            document.getElementById('app-layout').style.display = 'grid';
+
+            // Find Root
             try {
                 const searchResp = await gapi.client.drive.files.list({
                     'q': "(name = 'theatre' or name = 'Theatre' or name = 'Movies') and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
                     'fields': "files(id, name)",
                     'pageSize': 1
                 });
-                
                 if (searchResp.result.files.length > 0) {
                     appRootId = searchResp.result.files[0].id;
-                    appRootName = searchResp.result.files[0].name;
                 }
-            } catch (e) { console.warn("Search failed, using root"); }
+            } catch (e) { console.warn("Search failed, using drive root"); }
 
-            loadFolder(appRootId, appRootName);
+            // Initial Render
+            renderSidebarRoot(appRootId);
+            loadMainVideos(appRootId, "Home");
         }
 
-        // --- MAIN LOAD LOGIC ---
-        async function loadFolder(folderId, folderName) {
-            const videoGrid = document.getElementById('video-grid');
-            const folderList = document.getElementById('folder-list');
+        // 3. TREE VIEW LOGIC (SIDEBAR)
+        async function renderSidebarRoot(rootId) {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = ''; // Clear
+            
+            // Fetch root folders
+            const folders = await fetchContents(rootId, 'folders');
+            
+            folders.forEach(folder => {
+                const item = createTreeItem(folder);
+                sidebar.appendChild(item);
+            });
+        }
+
+        function createTreeItem(file) {
+            // Container
+            const container = document.createElement('div');
+            container.className = 'tree-item';
+            container.dataset.id = file.id;
+
+            // Content Row (Arrow + Icon + Name)
+            const content = document.createElement('div');
+            content.className = 'tree-content';
+            content.innerHTML = `<span class="tree-arrow">▶</span> <span class="tree-icon">📁</span> ${file.name}`;
+            
+            // Children Container (Hidden by default)
+            const childrenDiv = document.createElement('div');
+            childrenDiv.className = 'tree-children';
+
+            // CLICK HANDLER
+            content.onclick = async (e) => {
+                e.stopPropagation(); // Stop bubbling
+                
+                // 1. Highlight Active
+                document.querySelectorAll('.tree-content').forEach(el => el.classList.remove('active'));
+                content.classList.add('active');
+
+                // 2. Load Videos in Main View
+                loadMainVideos(file.id, file.name);
+
+                // 3. Toggle Expansion
+                if (container.classList.contains('expanded')) {
+                    container.classList.remove('expanded');
+                } else {
+                    container.classList.add('expanded');
+                    // If children empty, fetch them
+                    if (childrenDiv.children.length === 0) {
+                        const subFolders = await fetchContents(file.id, 'folders');
+                        if (subFolders.length === 0) {
+                            childrenDiv.innerHTML = '<div style="padding-left:40px; color:#555; font-size:0.8rem; padding-top:5px;">Empty</div>';
+                        } else {
+                            subFolders.forEach(sub => {
+                                childrenDiv.appendChild(createTreeItem(sub));
+                            });
+                        }
+                    }
+                }
+            };
+
+            container.appendChild(content);
+            container.appendChild(childrenDiv);
+            return container;
+        }
+
+        // 4. MAIN VIEW LOGIC
+        async function loadMainVideos(folderId, folderName) {
+            const grid = document.getElementById('video-grid');
+            const bread = document.getElementById('breadcrumbs');
             const loader = document.getElementById('loader');
-            const breadcrumbs = document.getElementById('breadcrumbs');
 
-            // Clear Views
-            videoGrid.innerHTML = '';
-            folderList.innerHTML = '';
+            grid.innerHTML = '';
             loader.style.display = 'block';
-            breadcrumbs.innerText = `Browsing: ${folderName}`;
+            bread.innerText = folderName;
 
+            const videos = await fetchContents(folderId, 'videos');
+            
+            loader.style.display = 'none';
+
+            if (videos.length === 0) {
+                grid.innerHTML = '<div style="color:#555; padding:20px;">No videos found in this folder.</div>';
+                return;
+            }
+
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                let thumb = v.thumbnailLink ? v.thumbnailLink.replace('s220', 's600') : '';
+                
+                card.innerHTML = `
+                    <img class="card-img" src="${thumb}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Img'">
+                    <div class="card-title">${v.name}</div>
+                `;
+                card.onclick = () => playVideo(v.id);
+                grid.appendChild(card);
+            });
+        }
+
+        // 5. HELPER: FETCH CONTENTS
+        async function fetchContents(folderId, type) {
             try {
-                // Fetch everything in this folder
-                const query = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'video/') and trashed = false`;
+                const query = `'${folderId}' in parents and trashed = false`;
                 const response = await gapi.client.drive.files.list({
                     'pageSize': 100,
                     'fields': "files(id, name, mimeType, thumbnailLink)",
@@ -374,80 +434,28 @@
                     'q': query
                 });
 
-                loader.style.display = 'none';
                 const files = response.result.files || [];
-
-                // SEPARATE FOLDERS vs VIDEOS
-                const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-                const videos = files.filter(f => f.mimeType.includes('video/'));
-
-                // 1. RENDER SIDEBAR FOLDERS
-                if (folders.length === 0) {
-                    folderList.innerHTML = '<div style="padding:15px; color:#555; font-size:0.8rem;">No Subfolders</div>';
-                } else {
-                    folders.forEach(f => {
-                        const div = document.createElement('div');
-                        div.className = 'nav-item';
-                        div.innerHTML = `<i>📁</i> ${f.name}`;
-                        div.onclick = () => {
-                            folderHistory.push({id: currentFolderId, name: currentFolderName});
-                            loadFolder(f.id, f.name);
-                        };
-                        folderList.appendChild(div);
-                    });
+                
+                if (type === 'folders') {
+                    return files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+                } else if (type === 'videos') {
+                    return files.filter(f => f.mimeType.includes('video/'));
                 }
-
-                // 2. RENDER MAIN VIDEO GRID
-                if (videos.length === 0) {
-                    videoGrid.innerHTML = '<div style="color:#555; padding:20px;">No videos in this folder.</div>';
-                } else {
-                    videos.forEach(v => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        let thumb = v.thumbnailLink ? v.thumbnailLink.replace('s220', 's600') : '';
-                        
-                        card.innerHTML = `
-                            <img class="card-img" src="${thumb}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Img'">
-                            <div class="card-title">${v.name}</div>
-                        `;
-                        card.onclick = () => playVideo(v.id);
-                        videoGrid.appendChild(card);
-                    });
-                }
-
-                currentFolderId = folderId;
-                currentFolderName = folderName;
-                updateBackBtn();
+                return [];
 
             } catch (err) {
                 console.error(err);
                 if(err.result && err.result.error.code == 401) signOut();
+                return [];
             }
         }
 
-        // --- NAVIGATION ---
-        function goBack() {
-            if (folderHistory.length > 0) {
-                const prev = folderHistory.pop();
-                loadFolder(prev.id, prev.name);
-            }
+        function reloadRoot() {
+            renderSidebarRoot(appRootId);
+            loadMainVideos(appRootId, "Home");
         }
 
-        function goHome() {
-            folderHistory = [];
-            loadFolder(appRootId, appRootName);
-        }
-
-        function refreshFolder() {
-            loadFolder(currentFolderId, currentFolderName);
-        }
-
-        function updateBackBtn() {
-            const btn = document.getElementById('btn-back');
-            btn.style.display = (folderHistory.length > 0) ? 'flex' : 'none';
-        }
-
-        // --- PLAYER ---
+        // 6. PLAYER
         function playVideo(id) {
             const modal = document.getElementById('player-modal');
             const iframe = document.getElementById('video-frame');
